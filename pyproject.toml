@@ -1,0 +1,42 @@
+[project]
+name = "msvclib"
+version = "0.1.0"
+description = "Lightweight Microsoft Visual C++ build tools for Python"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "wmymz", email = "wmymz@icloud.com" }
+]
+maintainers = [
+    { name = "wmymz", email = "wmymz@icloud.com" }
+]
+requires-python = ">=3.6"
+dependencies = []
+keywords = ["msvc", "visual-studio", "build-tools", "compiler", "windows", "python"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Compilers",
+]
+
+[project.urls]
+Homepage = "https://github.com/qy527145/msvclib"
+Repository = "https://github.com/qy527145/msvclib"
+Issues = "https://github.com/qy527145/msvclib/issues"
+Documentation = "https://github.com/qy527145/msvclib#readme"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
