@@ -98,7 +98,7 @@ def read_readme():
 
 setup(
     name="msvclib",
-    version="0.1.0",
+    version="0.2.0",
     description="Lightweight Microsoft Visual C++ build tools for Python",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
