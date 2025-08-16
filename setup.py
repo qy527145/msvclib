@@ -26,30 +26,130 @@ class CustomInstall(install):
 
     def _create_msvcinit_bat(self, scripts_dir):
         """创建 msvcinit.bat 和 msvcinit.ps1 文件"""
-        # 创建 bat 文件内容
+        # 创建 bat 文件内容 - 使用动态路径查找，带备用方案
         bat_content = """@echo off
+setlocal enabledelayedexpansion
 echo Initializing MSVC environment...
-call %~dp0\\..\\Lib\\site-packages\\msvclib\\devcmd.bat
+
+REM 方法1: 尝试传统的相对路径 (pip install)
+set MSVCLIB_PATH=%~dp0..\\Lib\\site-packages\\msvclib
+if exist "%MSVCLIB_PATH%\\devcmd.bat" goto :found
+
+REM 方法2: 尝试 uv tool 路径
+uv --version >nul 2>&1
+if %errorlevel% equ 0 (
+    for /f "delims=" %%i in ('uv tool dir 2^>nul') do (
+        set MSVCLIB_PATH=%%i\\msvclib\\Lib\\site-packages\\msvclib
+        if exist "!MSVCLIB_PATH!\\devcmd.bat" goto :found
+    )
+)
+
+REM 方法3: 使用 Python 动态查找 msvclib 包的安装位置
+python -c "import msvclib, os; print(os.path.dirname(msvclib.__file__))" > "%TEMP%\\msvclib_path.txt" 2>nul
+if %errorlevel% equ 0 (
+    set /p MSVCLIB_PATH=<"%TEMP%\\msvclib_path.txt"
+    del "%TEMP%\\msvclib_path.txt"
+    if exist "%MSVCLIB_PATH%\\devcmd.bat" goto :found
+)
+
+REM 方法4: 在当前脚本目录查找
+set MSVCLIB_PATH=%~dp0msvclib
+if exist "%MSVCLIB_PATH%\\devcmd.bat" goto :found
+
+echo Error: Cannot find msvclib devcmd.bat in any expected location.
+echo Please ensure msvclib is properly installed.
+echo Tried locations:
+echo   - %~dp0..\\Lib\\site-packages\\msvclib
+echo   - uv tool virtual environment
+echo   - Python package location (dynamic)
+echo   - %~dp0msvclib
+exit /b 1
+
+:found
+echo Found msvclib at: %MSVCLIB_PATH%
+endlocal & set "MSVCLIB_DEVCMD_PATH=%MSVCLIB_PATH%\\devcmd.bat"
+call "%MSVCLIB_DEVCMD_PATH%"
 set DISTUTILS_USE_SDK=1
 echo MSVC environment initialized successfully!
 echo You can now use Visual Studio build tools in this command prompt.
 """
 
-        # 创建 PowerShell 脚本内容
+        # 创建 PowerShell 脚本内容 - 使用动态路径查找，带备用方案
         ps1_content = """# PowerShell script for MSVC environment initialization
 Write-Host "Initializing MSVC environment..." -ForegroundColor Yellow
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$devcmdPath = Join-Path $scriptDir "..\\Lib\\site-packages\\msvclib\\devcmd.ps1"
+function Find-MsvcLibPath {
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Source the PowerShell script
-& $devcmdPath
+    # 方法1: 尝试传统的相对路径 (pip install)
+    $msvcLibPath = Join-Path $scriptDir "..\\Lib\\site-packages\\msvclib"
+    if (Test-Path (Join-Path $msvcLibPath "devcmd.ps1")) {
+        return $msvcLibPath
+    }
 
-# Set DISTUTILS_USE_SDK
-$env:DISTUTILS_USE_SDK = "1"
+    # 方法2: 尝试 uv tool 路径
+    try {
+        $uvVersion = uv --version 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $uvToolDir = uv tool dir 2>$null
+            if ($LASTEXITCODE -eq 0 -and $uvToolDir) {
+                $msvcLibPath = Join-Path $uvToolDir "msvclib\\Lib\\site-packages\\msvclib"
+                if (Test-Path (Join-Path $msvcLibPath "devcmd.ps1")) {
+                    return $msvcLibPath
+                }
+            }
+        }
+    } catch {}
 
-Write-Host "MSVC environment initialized successfully!" -ForegroundColor Green
-Write-Host "You can now use Visual Studio build tools in this PowerShell session." -ForegroundColor Cyan
+    # 方法3: 使用 Python 动态查找 msvclib 包的安装位置
+    try {
+        $msvcLibPath = python -c "import msvclib, os; print(os.path.dirname(msvclib.__file__))" 2>$null
+        if ($LASTEXITCODE -eq 0 -and (Test-Path (Join-Path $msvcLibPath "devcmd.ps1"))) {
+            return $msvcLibPath
+        }
+    } catch {}
+
+    # 方法4: 在当前脚本目录查找
+    $msvcLibPath = Join-Path $scriptDir "msvclib"
+    if (Test-Path (Join-Path $msvcLibPath "devcmd.ps1")) {
+        return $msvcLibPath
+    }
+
+    return $null
+}
+
+try {
+    $msvcLibPath = Find-MsvcLibPath
+
+    if (-not $msvcLibPath) {
+        Write-Host "Error: Cannot find msvclib devcmd.ps1 in any expected location." -ForegroundColor Red
+        Write-Host "Please ensure msvclib is properly installed." -ForegroundColor Red
+        Write-Host "Tried locations:" -ForegroundColor Yellow
+        Write-Host "  - Traditional pip install location" -ForegroundColor Yellow
+        Write-Host "  - uv tool virtual environment" -ForegroundColor Yellow
+        Write-Host "  - Python package location (dynamic)" -ForegroundColor Yellow
+        Write-Host "  - Script directory" -ForegroundColor Yellow
+        exit 1
+    }
+
+    $devcmdPath = Join-Path $msvcLibPath "devcmd.ps1"
+
+    Write-Host "Found msvclib at: $msvcLibPath" -ForegroundColor Cyan
+
+    # Source the PowerShell script
+    & $devcmdPath
+
+    # Set DISTUTILS_USE_SDK
+    $env:DISTUTILS_USE_SDK = "1"
+
+    Write-Host "MSVC environment initialized successfully!" -ForegroundColor Green
+    Write-Host "You can now use Visual Studio build tools in this PowerShell session." -ForegroundColor Cyan
+}
+catch {
+    Write-Host "Error initializing MSVC environment: $_" -ForegroundColor Red
+    Write-Host "Please ensure msvclib is properly installed and accessible." -ForegroundColor Red
+    exit 1
+}
 """
 
         # 创建 bat 文件
@@ -98,7 +198,7 @@ def read_readme():
 
 setup(
     name="msvclib",
-    version="0.2.0",
+    version="0.2.1",
     description="Lightweight Microsoft Visual C++ build tools for Python",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
