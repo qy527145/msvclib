@@ -1,6 +1,6 @@
 [project]
 name = "msvclib"
-version = "0.2.1"
+version = "0.2.2"
 description = "Lightweight Microsoft Visual C++ build tools for Python"
 readme = "README.md"
 license = { text = "MIT" }

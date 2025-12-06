@@ -79,7 +79,10 @@ echo You can now use Visual Studio build tools in this command prompt.
 Write-Host "Initializing MSVC environment..." -ForegroundColor Yellow
 
 function Find-MsvcLibPath {
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $scriptDir = $PSScriptRoot
+    if (-not $scriptDir) {
+        $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+    }
 
     # 方法1: 尝试传统的相对路径 (pip install)
     $msvcLibPath = Join-Path $scriptDir "..\\Lib\\site-packages\\msvclib"
